@@ -32,13 +32,11 @@ public class QueryUtils {
                 String[] authors = new String[authorsJson.length()];
                 int j;
                 String author = "";
-                for(j = 0; j < authorsJson.length(); j++) {
-                    if (j == 0){
+                for (j = 0; j < authorsJson.length(); j++) {
+                    if (j == 0) {
                         authors[j] = authorsJson.getString(j);
                         author = authors[j];
-                    }
-
-                    else {
+                    } else {
                         authors[j] = authorsJson.getString(j);
                         author = author + ", " + authors[j];
                     }

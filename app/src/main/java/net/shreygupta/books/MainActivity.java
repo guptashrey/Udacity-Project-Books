@@ -1,9 +1,8 @@
 package net.shreygupta.books;
 
 import android.os.AsyncTask;
-import android.support.v4.app.LoaderManager;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
@@ -24,9 +23,9 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity {
 
     String url_template = "https://www.googleapis.com/books/v1/volumes?q=";
-    private BookAdapter mAdapter;
     EditText search_et;
     ImageButton search_button;
+    private BookAdapter mAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,39 +47,6 @@ public class MainActivity extends AppCompatActivity {
                 task.execute();
             }
         });
-
-
-    }
-
-    private class BookAsyncTask extends AsyncTask<URL, Void, List<Book>> {
-
-        URL url = null;
-        @Override
-        protected void onPreExecute() {
-            String urlString = createStringURL();
-            Log.e("url", urlString);
-            url = createFinalURL(urlString);
-        }
-
-        @Override
-        protected List<Book> doInBackground(URL... urls) {
-            String jsonResponse = "";
-
-            try {
-                jsonResponse = makeHttpRequest(url);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
-            List<Book> books = QueryUtils.extractFromJson(jsonResponse);
-            return books;
-        }
-
-        @Override
-        protected void onPostExecute(List<Book> books) {
-            mAdapter.clear();
-            mAdapter.addAll(books);
-        }
     }
 
     private String createStringURL() {
@@ -100,7 +66,7 @@ public class MainActivity extends AppCompatActivity {
     private String makeHttpRequest(URL url) throws IOException {
         String jsonResponse = "";
 
-        if (url == null){
+        if (url == null) {
             return jsonResponse;
         }
 
@@ -114,7 +80,7 @@ public class MainActivity extends AppCompatActivity {
             urlConnection.setConnectTimeout(15000 /* milliseconds */);
             urlConnection.connect();
 
-            if (urlConnection.getResponseCode() == 200){
+            if (urlConnection.getResponseCode() == 200) {
                 inputStream = urlConnection.getInputStream();
                 jsonResponse = readFromStream(inputStream);
             } else {
@@ -145,5 +111,37 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         return output.toString();
+    }
+
+    private class BookAsyncTask extends AsyncTask<URL, Void, List<Book>> {
+
+        URL url = null;
+
+        @Override
+        protected void onPreExecute() {
+            String urlString = createStringURL();
+            Log.e("url", urlString);
+            url = createFinalURL(urlString);
+        }
+
+        @Override
+        protected List<Book> doInBackground(URL... urls) {
+            String jsonResponse = "";
+
+            try {
+                jsonResponse = makeHttpRequest(url);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            List<Book> books = QueryUtils.extractFromJson(jsonResponse);
+            return books;
+        }
+
+        @Override
+        protected void onPostExecute(List<Book> books) {
+            mAdapter.clear();
+            mAdapter.addAll(books);
+        }
     }
 }
