@@ -1,31 +1,27 @@
 package net.shreygupta.books;
 
-import android.os.AsyncTask;
+import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Bundle;
+import android.support.v4.app.LoaderManager;
+import android.support.v4.content.Loader;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ListView;
+import android.widget.TextView;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<List<Book>> {
 
-    String url_template = "https://www.googleapis.com/books/v1/volumes?q=";
-    EditText search_et;
-    ImageButton search_button;
+    private static final int BOOK_LOADER_ID = 1;
+    private EditText search_et;
     private BookAdapter mAdapter;
+    private TextView textNoDataFound;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,115 +29,70 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         search_et = (EditText) findViewById(R.id.search_et);
-        search_button = (ImageButton) findViewById(R.id.search_button);
-
+        ImageButton search_button = (ImageButton) findViewById(R.id.search_button);
         mAdapter = new BookAdapter(this, new ArrayList<Book>());
+
+        final View loadingIndicator = findViewById(R.id.loading_indicator);
+        loadingIndicator.setVisibility(View.GONE);
 
         ListView bookListView = (ListView) findViewById(R.id.list);
         bookListView.setAdapter(mAdapter);
 
+        textNoDataFound = (TextView) findViewById(R.id.text_no_data_found);
+        bookListView.setEmptyView(textNoDataFound);
+
+        final LoaderManager loaderManager = getSupportLoaderManager();
+
         search_button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                BookAsyncTask task = new BookAsyncTask();
-                task.execute();
+
+                ConnectivityManager connMgr = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+                NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
+
+                if (networkInfo != null && networkInfo.isConnected()) {
+                    textNoDataFound.setVisibility(View.INVISIBLE);
+                    loadingIndicator.setVisibility(View.VISIBLE);
+                    loaderManager.restartLoader(BOOK_LOADER_ID, null, MainActivity.this);
+                } else {
+                    mAdapter.clear();
+                    textNoDataFound.setText(getResources().getString(R.string.no_internet_connection));
+                    textNoDataFound.setVisibility(View.VISIBLE);
+                }
             }
         });
     }
 
     private String createStringURL() {
-        return url_template + search_et.getText().toString() + "&maxResults=10";
-    }
+        String url_basic = getResources().getString(R.string.basic_url);
 
-    private URL createFinalURL(String stringUrl) {
-
-        try {
-            return new URL(stringUrl);
-        } catch (MalformedURLException e) {
-            e.printStackTrace();
+        if (search_et.getText().toString().equals("")) {
             return null;
-        }
+        } else
+            return url_basic + search_et.getText().toString().replace(" ", "+");
     }
 
-    private String makeHttpRequest(URL url) throws IOException {
-        String jsonResponse = "";
-
-        if (url == null) {
-            return jsonResponse;
-        }
-
-        HttpURLConnection urlConnection = null;
-        InputStream inputStream = null;
-
-        try {
-            urlConnection = (HttpURLConnection) url.openConnection();
-            urlConnection.setRequestMethod("GET");
-            urlConnection.setReadTimeout(10000 /* milliseconds */);
-            urlConnection.setConnectTimeout(15000 /* milliseconds */);
-            urlConnection.connect();
-
-            if (urlConnection.getResponseCode() == 200) {
-                inputStream = urlConnection.getInputStream();
-                jsonResponse = readFromStream(inputStream);
-            } else {
-                Log.e("mainActivity", "Error response code: " + urlConnection.getResponseCode());
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            if (urlConnection != null) {
-                urlConnection.disconnect();
-            }
-            if (inputStream != null) {
-                inputStream.close();
-            }
-        }
-        return jsonResponse;
+    @Override
+    public Loader<List<Book>> onCreateLoader(int id, Bundle args) {
+        return new BookLoader(this, createStringURL());
     }
 
-    private String readFromStream(InputStream inputStream) throws IOException {
-        StringBuilder output = new StringBuilder();
-        if (inputStream != null) {
-            InputStreamReader inputStreamReader = new InputStreamReader(inputStream, Charset.forName("UTF-8"));
-            BufferedReader reader = new BufferedReader(inputStreamReader);
-            String line = reader.readLine();
-            while (line != null) {
-                output.append(line);
-                line = reader.readLine();
-            }
-        }
-        return output.toString();
-    }
+    @Override
+    public void onLoadFinished(Loader<List<Book>> loader, List<Book> books) {
 
-    private class BookAsyncTask extends AsyncTask<URL, Void, List<Book>> {
+        View loadingIndicator = findViewById(R.id.loading_indicator);
+        loadingIndicator.setVisibility(View.GONE);
 
-        URL url = null;
+        textNoDataFound.setText(R.string.no_books);
 
-        @Override
-        protected void onPreExecute() {
-            String urlString = createStringURL();
-            Log.e("url", urlString);
-            url = createFinalURL(urlString);
-        }
+        mAdapter.clear();
 
-        @Override
-        protected List<Book> doInBackground(URL... urls) {
-            String jsonResponse = "";
-
-            try {
-                jsonResponse = makeHttpRequest(url);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
-            List<Book> books = QueryUtils.extractFromJson(jsonResponse);
-            return books;
-        }
-
-        @Override
-        protected void onPostExecute(List<Book> books) {
-            mAdapter.clear();
+        if (books != null && !books.isEmpty()) {
             mAdapter.addAll(books);
         }
+    }
+
+    @Override
+    public void onLoaderReset(Loader loader) {
     }
 }

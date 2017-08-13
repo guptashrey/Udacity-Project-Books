@@ -1,10 +1,10 @@
 package net.shreygupta.books;
 
 
-public class Book {
+class Book {
 
-    private String mBookTitle;
-    private String mAuthorName;
+    private final String mBookTitle;
+    private final String mAuthorName;
 
     public Book(String bookTitle, String authorName) {
         mBookTitle = bookTitle;
